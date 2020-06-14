@@ -10,26 +10,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ansi_term"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ee49baf6cb617b853aa8d93bf420db2383fab46d314482ca2803b40d5fde979b"
-dependencies = [
- "winapi",
-]
-
-[[package]]
-name = "atty"
-version = "0.2.14"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9b39be18770d11421cdb1b9947a45dd3f37e93092cbf377614828a319d5fee8"
-dependencies = [
- "hermit-abi",
- "libc",
- "winapi",
-]
-
-[[package]]
 name = "autocfg"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -40,12 +20,6 @@ name = "base-x"
 version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1b20b618342cf9891c292c4f5ac2cde7287cc5c87e87e9c769d617793607dec1"
-
-[[package]]
-name = "bitflags"
-version = "1.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf1de2fe8c75bc145a2f577add951f8134889b4795d47466a54a5c846d691693"
 
 [[package]]
 name = "bumpalo"
@@ -71,21 +45,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "clap"
-version = "2.33.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5067f5bb2d80ef5d68b4c87db81601f0b75bca627bc2ef76b141d7b846a3c6d9"
-dependencies = [
- "ansi_term",
- "atty",
- "bitflags",
- "strsim",
- "textwrap",
- "unicode-width",
- "vec_map",
-]
-
-[[package]]
 name = "console"
 version = "0.11.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -107,11 +66,16 @@ name = "cpx2"
 version = "0.1.0"
 dependencies = [
  "chrono",
- "clap",
  "console",
+ "itoa",
  "rand",
  "regex",
+ "serde",
+ "serde_json",
+ "termcolor",
+ "terminal_size",
  "time 0.2.15",
+ "unicode-segmentation",
 ]
 
 [[package]]
@@ -135,15 +99,6 @@ dependencies = [
  "cfg-if",
  "libc",
  "wasi",
-]
-
-[[package]]
-name = "hermit-abi"
-version = "0.1.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61565ff7aaace3525556587bd2dc31d4a07071957be715e63ce7b1eccf51a8f4"
-dependencies = [
- "libc",
 ]
 
 [[package]]
@@ -322,6 +277,9 @@ name = "serde"
 version = "1.0.110"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "99e7b308464d16b56eba9964e4972a3eee817760ab60d88c3f86e1fecb08204c"
+dependencies = [
+ "serde_derive",
+]
 
 [[package]]
 name = "serde_derive"
@@ -407,12 +365,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "213701ba3370744dcd1a12960caa4843b3d68b4d1c0a5d575e0d65b2ee9d16c0"
 
 [[package]]
-name = "strsim"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8ea5119cdb4c55b55d432abb513a0429384878c15dde60cc77b1c99de1a95a6a"
-
-[[package]]
 name = "syn"
 version = "1.0.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -421,6 +373,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-xid",
+]
+
+[[package]]
+name = "termcolor"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bb6bfa289a4d7c5766392812c0a1f4c1ba45afa1ad47803c11e1f407d846d75f"
+dependencies = [
+ "winapi-util",
 ]
 
 [[package]]
@@ -440,15 +401,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6f0fcee7b24a25675de40d5bb4de6e41b0df07bc9856295e7e2b3a3600c400c2"
 dependencies = [
  "libc",
-]
-
-[[package]]
-name = "textwrap"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d326610f408c7a4eb6f51c37c330e496b08506c9457c9d34287ecc38809fb060"
-dependencies = [
- "unicode-width",
 ]
 
 [[package]]
@@ -509,6 +461,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "unicode-segmentation"
+version = "1.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e83e153d1053cbb5a118eeff7fd5be06ed99153f00dbcd8ae310c5fb2b22edc0"
+
+[[package]]
 name = "unicode-width"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -519,12 +477,6 @@ name = "unicode-xid"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "826e7639553986605ec5979c7dd957c7895e93eabed50ab2ffa7f6128a75097c"
-
-[[package]]
-name = "vec_map"
-version = "0.8.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f1bddf1187be692e79c5ffeab891132dfb0f236ed36a43c7ed39f1165ee20191"
 
 [[package]]
 name = "version_check"

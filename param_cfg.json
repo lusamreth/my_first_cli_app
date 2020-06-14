@@ -1,0 +1,21 @@
+{
+    "limits":false,
+    "arg_type": "Affixes",
+    "commands": [
+       {
+            "short": "l",
+            "long": "lowercase",
+            "description": "Convert file functions to use lowercase!"
+        },
+     {
+            "short": "u",
+            "long": "uppercase",
+            "description": "Convert file functions to use uppercase!"
+        },
+     {
+            "short": "c",
+            "long": "case_sensitive/default",
+            "description": "Convert file functions to be case sensitive!"
+        }
+    ]
+}
