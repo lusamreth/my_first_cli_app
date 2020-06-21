@@ -4,8 +4,9 @@ pub mod interface;
 pub mod utility;
 extern crate chrono;
 pub mod file;
-fn main() {
+// use termion::terminal_size;
 
-    imply::mainrunner();
+
+fn main() {
     cli_handler::run();
 }

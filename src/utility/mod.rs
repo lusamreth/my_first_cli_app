@@ -1,3 +1,4 @@
+use super::interface;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::{
@@ -12,17 +13,16 @@ pub fn getnow() -> std::time::Duration {
         .expect("error time went backward!");
     return since_epoch;
 }
-pub fn write(){
-
-}
+pub fn write() {}
 pub fn first_letter<'a>(word: &str) -> String {
     word.split(' ').flat_map(|x| x.chars().nth(0)).collect()
 }
-
+use interface::printer;
 pub fn input(message: Option<&str>) -> Result<String, Vec<String>> {
     // .expect("Some commands could not be accepted"
+    let p_init = printer::TermCfg::new().set_attr(console::Attribute::Italic);
     if let Some(msg) = message {
-        print!("{}", msg);
+        p_init.gen_print(Some(console::Color::Blue))(&format!("{}", msg));
     }
     let mut input = String::new();
     let mut err_collector = Vec::new();
@@ -126,12 +126,11 @@ impl Pathstack {
             return;
         }
         self.stack.borrow_mut().pop();
-        if *inner_count > 0{
+        if *inner_count > 0 {
             *inner_count -= 1;
-        }else{
+        } else {
             return;
         }
-        
     }
     pub fn is_empty(&self) -> bool {
         return *self.count.borrow() == 0;
@@ -158,15 +157,37 @@ impl Pathstack {
     }
 }
 
+// pub fn split_chunk(line: &str, limit: usize) -> Vec<&str> {
+//     pub use std::str;
+//     let hmm = line.as_bytes();
+//     let mut chars = line.chars();
+//     // let sub_string = (0..)
+//     //     .map(|_| chars.by_ref().take(limit).collect::<String>())
+//     //     .take_while(|s| !s.is_empty())
+//     //     .collect::<Vec<_>>();
+    
+//     // return sub_string;
+//     /*crazy fast*/
+//     line.as_bytes()
+//         .chunks(limit)
+//         .map(|s| unsafe { ::std::str::from_utf8_unchecked(s) })
+//         .collect::<Vec<_>>()
+// }
 pub fn split_chunk(line: &str, limit: usize) -> Vec<&str> {
-    pub use std::str;
-    line.as_bytes()
-        .chunks(limit)
-        .map(str::from_utf8)
-        .collect::<Result<Vec<&str>, _>>()
-        .unwrap()
-}
+    let mut subs = Vec::with_capacity(line.len() / limit);
+    let mut iter = line.chars();
+    let mut pos = 0;
 
+    while pos < line.len() {
+        let mut len = 0;
+        for ch in iter.by_ref().take(limit) {
+            len += ch.len_utf8();
+        }
+        subs.push(&line[pos..pos + len]);
+        pos += len;
+    }
+    subs
+}
 #[derive(Debug, Eq, PartialEq)]
 pub struct Command<T, F> {
     pub execution: F,
@@ -205,30 +226,29 @@ where
         .trim()
         .split(".")
         .filter(|s| !s.is_empty() && !s.contains(" "))
-        .map(|s| s.to_lowercase().to_string())
+        .map(|s| s.to_lowercase().to_string().to_owned())
         .collect::<Vec<String>>();
-
-    let p_get = |num: usize| {
-        input
-            .get(num)
-            .unwrap_or_else(|| panic!("Insufficient length of parameters"))
+    let p_get = |num: usize| match input.get(num) {
+        Some(x) => x.clone(),
+        None => String::new(),
     };
-    let result = cmd_list.into_iter().find(|each_cmd| {
+    let result = cmd_list.into_iter().find(|ec| {
+        let binder = ec.binder.to_string().to_lowercase();
+        let exec = ec.execution.to_string().to_lowercase();
         if input.len() == 1 {
             let ip = p_get(0);
-
-            each_cmd.binder.to_string() == *ip || each_cmd.execution.to_string() == *ip
+            println!("pew {}", exec.to_string());
+            binder.to_string() == *ip || exec.to_string() == *ip
         } else {
             let input_binder = p_get(0);
             let input_exec = p_get(1);
 
-            each_cmd.binder.to_string() == *input_binder
-                && each_cmd.execution.to_string() == *input_exec
+            binder.to_string() == *input_binder && exec.to_string() == *input_exec
         }
     });
     return result;
 }
-
+fn highlighter() {}
 #[test]
 fn test_verify() {
     let t = make_cmd(vec!["apple", "pencil", "dede"]);
@@ -238,4 +258,3 @@ fn test_verify() {
     };
     println!("this is cmd : P{:?}", match_command("1", &t));
 }
-

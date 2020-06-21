@@ -1,25 +1,24 @@
+use super::components::{border, BorderWeight,parse_in_template};
 use super::text_processing;
-use super::{border, gen_newline, gen_whitespace, utility, BorderWeight};
 use std::collections::VecDeque;
-use std::iter;
-use std::slice::IterMut;
-trait TemplateEngine<'a> {
-    // fn gen_whitespace();
-    // fn gen_newline();
-    fn init() -> TemplateFactory<'a>;
+
+//trait
+pub trait TemplateEngine<'a> {
     fn center_box();
-    fn parse_in_template();
-}
-trait TemplateBuilder<'a> {
-    fn init() -> TemplateFactory<'a>;
     fn chain(&mut self) -> &mut Self;
     fn border(&mut self, style: &'a str, weight: BorderWeight) -> &mut Self;
-    fn create_movable(&mut self) -> &mut Self;
     fn padding(&mut self, padding: Vec<u16>) -> &mut Self;
+    fn display(&self);
+}
+pub trait TemplateBuilder<'a> {
+    fn init() -> TemplateFactory<'a>;
+    fn chain( self) ->  Self;
+    fn parse_in_template(self,content: &str) ->  Self;
+    fn create_movable(self) -> Self;
     fn collect(self) -> Template<'a>;
 }
 #[derive(Debug)]
-struct TemplateFactory<'a> {
+pub struct TemplateFactory<'a> {
     structure: Vec<String>,
     opt_movable: Option<Vec<VecDeque<char>>>,
     opt_style_dot: Option<&'a str>,
@@ -27,7 +26,7 @@ struct TemplateFactory<'a> {
 }
 // impl
 #[derive(Debug, Clone)]
-struct Template<'a> {
+pub struct Template<'a> {
     structure: Vec<String>,
     movable: Vec<VecDeque<char>>,
     style_dot: &'a str,
@@ -35,13 +34,13 @@ struct Template<'a> {
 }
 
 #[derive(Debug, Clone)]
-struct Padding {
+pub struct Padding {
     top: u16,
     bottom: u16,
     left: u16,
     right: u16,
 }
-struct PaddingInterator<'a> {
+pub struct PaddingInterator<'a> {
     current_state: &'a Padding,
     index: usize,
 }
@@ -154,47 +153,7 @@ fn test_temp_engine() {
     // println!("{:?}");
 }
 
-fn long_str(content: &Vec<String>) -> usize {
-    let mut capture_index = 0;
-    let mut max = content.get(0).unwrap();
-    for (idx, ct) in content.iter().enumerate() {
-        if ct.len() > max.len() {
-            max = ct;
-            capture_index = idx;
-        }
-    }
-    return capture_index;
-}
 
-type template = Vec<String>;
-
-fn parse_in_template(content: &str) -> Vec<String> {
-    let len = 0;
-    // dot.write_x();
-    let mut render_temp: template = Vec::new();
-    let print_preset = |line: &str, count: i32| {
-        let formated_str = format!("{}|   {}", count, line);
-        return format!("{}", formated_str);
-    };
-    let mut count_line = 0;
-    for line in content.lines() {
-        let line = line.trim();
-        if line.len() > len as usize {
-            let muti_lines = utility::split_chunk(line, 100);
-            for line in muti_lines {
-                render_temp.push(print_preset(line, count_line));
-                count_line += 1;
-            }
-        } else {
-            render_temp.push(print_preset(line, count_line));
-            count_line += 1;
-        }
-    }
-    let longest_len = long_str(&render_temp) as i32;
-
-    println!("newspace {:?}", render_temp);
-    return render_temp;
-}
 impl<'a> TemplateBuilder<'a> for TemplateFactory<'a> {
     fn init() -> Self {
         TemplateFactory {
@@ -204,29 +163,27 @@ impl<'a> TemplateBuilder<'a> for TemplateFactory<'a> {
             opt_padding: Padding::create(),
         }
     }
-    fn border(&mut self, style: &'a str, weight: BorderWeight) -> &mut Self {
-        self.opt_style_dot = Some(style);
-        let style = self.opt_style_dot.unwrap();
-        // self.structure.push("Just a place holder for sure!".to_string());
-        self.structure = border(style.clone(), self.structure.clone(), weight);
-        self.chain()
+    fn parse_in_template(mut self,content: &str) -> Self{
+        let tmp = parse_in_template(content);
+        self.structure = tmp;
+        self
     }
-    fn chain(&mut self) -> &mut Self {
+    fn chain(mut self) -> Self {
         return self;
     }
-    fn padding(&mut self, padding: Vec<u16>) -> &mut Self {
-        self.opt_padding.input(padding);
-        self.chain()
-    }
-    fn create_movable(&mut self) -> &mut Self {
-        let m_obj = self.structure.iter().flat_map(|each_cluster| {
-            let crump = text_processing::CrumpCluster::break_chunk(each_cluster);
-            return crump
-                .get_raw()
-                .into_iter()
-                .map(|eachcrump| eachcrump.into_iter().collect::<VecDeque<char>>())
-                .collect::<Vec<VecDeque<char>>>();
-        }).collect::<Vec<VecDeque<char>>>();
+    fn create_movable(mut self) -> Self {
+        let m_obj = self
+            .structure
+            .iter()
+            .flat_map(|each_cluster| {
+                let crump = text_processing::CrumpCluster::break_chunk(each_cluster);
+                return crump
+                    .get_raw()
+                    .into_iter()
+                    .map(|eachcrump| eachcrump.into_iter().collect::<VecDeque<char>>())
+                    .collect::<Vec<VecDeque<char>>>();
+            })
+            .collect::<Vec<VecDeque<char>>>();
         self.opt_movable = Some(m_obj);
         self.chain()
     }
@@ -241,14 +198,29 @@ impl<'a> TemplateBuilder<'a> for TemplateFactory<'a> {
         }
     }
 }
+impl TemplateEngine<'_> for Template<'_>{
+    fn center_box(){
+
+    }
+    fn chain(&mut self) -> &mut Self{
+        self
+    }
+    fn border(&mut self, style:&str,weight: BorderWeight) -> &mut Self {
+        let test_padding = Padding::create().input(vec![5, 5, 10, 8]).clone();
+        self.structure = border(style, self.structure.clone(), weight, test_padding);
+        self.chain()
+    }
+    fn padding(&mut self, padding: Vec<u16>) -> &mut Self {
+        self.padding.input(padding);
+        self.chain()
+    }
+    fn display(&self) {
+        self.structure.iter().for_each(|line| println!("{}",line));
+    }
+}
 #[test]
 fn local_test() {
-    let mut new_template = TemplateFactory::init();
-    new_template
-        .padding(vec![2, 4])
-        .border("+", BorderWeight::Bold);
-    new_template.create_movable();
-    let zz = new_template.collect();
-    zz.structure.iter().for_each(|x| println!("{}",x));
-    println!("this is {:?}", zz);
+   let mut newtp = TemplateFactory::init().create_movable().parse_in_template("apple is shacky").collect();
+   newtp.border("+",BorderWeight::Light);
+   newtp.structure.into_iter().for_each(|x| println!("{}",x));
 }

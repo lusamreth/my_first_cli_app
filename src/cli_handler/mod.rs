@@ -1,25 +1,32 @@
 use super::file;
+use super::interface::{printer, TerminalSize};
 use super::utility::{self, ErrorHandler};
 pub use std::{fmt, io};
 mod state_manager;
+use console::{self, Color};
 use state_manager::Buffer;
+use std::thread;
 
 pub fn run() {
-    let main_menu = utility::make_cmd(vec!["file", "calculator", "sysmain"]);
+    #[macro_use]
+    let main_menu = utility::make_cmd(vec!["Save", "Import(not yet implemented)", "Default"]);
     for comd in &main_menu {
         println!("{}", comd);
     }
-    // controllers::make_exec("helllo abana lols");
+    
     let path_stack = utility::Pathstack::new(None);
     let dot = utility::Dot::new(50, "+");
-    let mut config_queue: Vec<String> = Vec::new();
-    let mut state_queue = state_manager::BufferState::new(state_manager::Constate::Save, Some(10));
+    let state_queue = state_manager::BufferState::new(state_manager::Constate::Save, Some(10));
+    let mut mx:u16 = 0;
+    // let (print_str,print_line) =
     loop {
-        let raw = utility::input(Some("->")).unwrap();
+        let raw = utility::input(Some(">>")).unwrap();
+        let pstr = init_print();
+        let print = pstr.gen_print(None);
+        let mut print_ln = pstr.gen_println(None);
+
         let feedback = raw.trim();
-        if feedback != "" {
-            println!("{}", feedback);
-        }
+
         let mut main_path = String::new();
         let mut ui_error_acc = ErrorHandler::Accumulator::init();
         let mut flush = |error: ErrorHandler::FileError| {
@@ -30,8 +37,8 @@ pub fn run() {
                 return;
             }
             let selector = format!("/{}:n/", state_queue.count() - 1);
-            match Buffer::remove(&mut state_queue, &selector) {
-                Ok(removed) => {}
+            match Buffer::remove(&state_queue, &selector) {
+                Ok(()) => {}
                 Err(e) => {
                     flush(ErrorHandler::FileError::new().set_message("No buffer to remove from!"))
                 }
@@ -45,73 +52,77 @@ pub fn run() {
             }
             "menu" => {
                 for comd in &main_menu {
-                    println!("{}", comd);
+                    print_ln(&format!("{}", comd));
                 }
             }
             _ => (),
         }
         // save_stat function to store cfg
-        let save_stat = || {
-            let file_op = vec!["save", "new", "default"];
-            let list = utility::make_cmd(file_op);
-            //render list
-            print!("\n");
-            list.iter().for_each(|f| print!("{}|", f));
-            // render_list(&list);
-            return list;
+        let mut op_runner = |config_holder: Option<file::Fileconfig>| {
+            let selector = format!("/{}:n/", state_queue.count() - 1);
+            match config_holder.unwrap().run() {
+                Ok(()) => {}
+                Err(fe) => {
+                    flush(fe);
+                    path_stack.unlock();
+                    path_stack.pop();
+                    state_queue
+                        .remove(&selector)
+                        .unwrap_or_else(|x| panic!("{}", x));
+                }
+            }
         };
 
+        let init_config = || {
+            let param = format!("{} {}", path_stack.peek(), feedback);
+            let filecfg = file::Fileconfig::new(&param, utility::getnow);
+            return filecfg;
+        };
         if path_stack.is_empty() == false {
             match &*path_stack.peek() {
-                "file" => {
-                    let param = format!("{} {}", path_stack.peek(), feedback);
-                    let filecfg = file::Fileconfig::new(&param, utility::getnow);
+                "Save" => {
+                    let filecfg = init_config();
                     if let Err(x) = filecfg {
                         println!("we got error: {}", x);
                     } else {
                         path_stack.unlock();
-                        Buffer::save(
-                            &mut state_queue,
-                            "name".to_string(),
-                            filecfg.unwrap(),
-                            &path_stack,
-                        );
+                        state_queue.save("name".to_string(), filecfg.unwrap(), &path_stack);
                         let selector = format!("/{}:n/", state_queue.count() - 1);
-                        let config_holder = Buffer::select(&state_queue, &selector);
-
-                        if let Err(error) = config_holder {
-                            println!("{}", error)
-                        } else {
-                            match config_holder.unwrap().run() {
-                                Ok(()) => println!("bruh"),
-                                Err(fe) => {
-                                    flush(fe);
-                                    path_stack.unlock();
-                                    path_stack.pop();
-                                    Buffer::remove(&mut state_queue, &selector)
-                                        .unwrap_or_else(|x| panic!("{}", x));
-                                }
-                            }
+                        let config_holder = state_queue.select(&selector);
+                        op_runner(config_holder);
+                    }
+                }
+                "Default" => {
+                    println!("selected");
+                    let filecfg = init_config();
+                    match filecfg {
+                        Ok(cfg) => {
+                            match cfg.run() {
+                                Ok(()) => {}
+                                Err(st) => flush(st),
+                            };
+                        }
+                        Err(efcf) => {
+                            flush(ErrorHandler::FileError::new().set_message(efcf));
                         }
                     }
                 }
                 _ => {}
             }
         }
-
         let push_stk = |exec_com: &str| {
             path_stack.push(exec_com.to_string());
             path_stack.lock();
             let msg = format!("{} module has been selected!", exec_com);
             dot.content_box(&msg);
-            println!("Choose your operations");
         };
         let feedback_int = feedback.parse::<i32>().unwrap_or_default();
-        let accepted_menu = main_menu
-            .iter()
-            .filter(|x| x.execution == feedback || x.binder == feedback_int)
-            .for_each(|each_cmd| push_stk(each_cmd.execution));
+        match utility::match_command(feedback, &main_menu) {
+            Some(comd) => push_stk(comd.execution),
+            None => {}
+        }
 
+        // print_ln(&format!("this is matched {:?}", matched));
         if feedback == "save" {
             println!("this is save mode")
         }
@@ -127,3 +138,7 @@ pub fn run() {
     when command get pushed in, lock the cycle; Stop receiver
     / - mean go back to path
 */
+fn init_print<'a>() -> printer::TermCfg {
+    let init = printer::TermCfg::new().set_attr(console::Attribute::Italic);
+    return init;
+}

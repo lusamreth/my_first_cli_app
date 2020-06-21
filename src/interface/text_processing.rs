@@ -3,11 +3,11 @@ use unicode_segmentation::UnicodeSegmentation;
 type Crump = Vec<char>;
 #[derive(Debug, Clone)]
 pub struct Cluster {
-    value: Vec<String>,
+    pub value: Vec<String>,
 }
 #[derive(Debug)]
 pub struct CrumpCluster {
-    Value: Vec<Crump>,
+    value: Vec<Crump>,
 }
 impl Cluster {
     pub fn make_cluster(long_str: &str) -> Cluster {
@@ -31,11 +31,11 @@ impl CrumpCluster {
             .map(|each_str| each_str.chars().into_iter().collect::<Crump>())
             .collect::<Vec<Crump>>();
 
-        return CrumpCluster { Value: Cc };
+        return CrumpCluster { value: Cc };
     }
     pub fn insert(&mut self, indx: usize, element: &str) -> &mut Self {
-        let blop = self.Value.get_mut(indx).unwrap();
-        match self.Value.get_mut(indx) {
+        let blop = self.value.get_mut(indx).unwrap();
+        match self.value.get_mut(indx) {
             Some(val) => {
                 element.chars().for_each(|ec| val.push(ec));
             }
@@ -48,7 +48,7 @@ impl CrumpCluster {
         let printErr = || eprintln!("Error! : Cannot Delete element at index {}!", indx);
 
         if let Some(end_indx) = end {
-            match self.Value.get_mut(indx..end.unwrap()) {
+            match self.value.get_mut(indx..end.unwrap()) {
                 Some(val) => {
                     val.iter_mut().for_each(|ch| {
                         ch.pop();
@@ -57,7 +57,7 @@ impl CrumpCluster {
                 None => printErr(),
             }
         } else {
-            match self.Value.get_mut(indx) {
+            match self.value.get_mut(indx) {
                 Some(val) => {
                     val.pop();
                 }
@@ -67,19 +67,34 @@ impl CrumpCluster {
 
         self.chain()
     }
-    pub fn get_raw(self) -> Vec<Crump>{
-        return self.Value;
+    pub fn get_raw(self) -> Vec<Crump> {
+        return self.value;
     }
     pub fn merge_crump(&self) -> String {
-        self.Value
+        self.value
             .iter()
             .map(|each_crump| each_crump.into_iter().collect::<String>())
             .collect()
     }
+    pub fn len(&self) -> usize {
+        self.value.len()
+    }
 }
 
 #[test]
-fn cp(){
-    let n = CrumpCluster::break_chunk("apple pencile dial").get_raw();
-    println!("n {:?}",n)
+fn cp() {
+    let orig = "apple pencile dial apple nasndsm nasmdn a,sdn m,as dna ,sn,adn m,ns,a apple";
+    let mut n = CrumpCluster::break_chunk(orig);
+    let reg = regex::Regex::new(r"apple").unwrap();
+    let arr = reg
+        .find_iter(orig)
+        .map(|x| (x.start(), x.end()))
+        .collect::<Vec<(usize, usize)>>();
+    arr.iter().for_each(|x|{
+        println!("x {:?}",x);
+        n.delete(x.0, Some(x.1));
+        n.insert(x.0, "bananana");
+    });
+    println!("arr  {:?}",arr);
+    println!("n {:?}", n.merge_crump());
 }

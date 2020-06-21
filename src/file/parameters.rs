@@ -52,8 +52,7 @@ pub fn filter_param(parameters: &Vec<String>, input: &str) -> String {
     let mut result = String::new();
     if parameters.is_empty() == false {
         parameters.iter().for_each(|param| {
-            println!("{}", param.as_str());
-            match param.as_str() {
+            match param.to_lowercase() .as_str(){
                 "--u" => result.push_str(&input.to_uppercase()),
                 "--l" => result.push_str(&input.to_lowercase()),
                 "--c" | "default" | _ => result = input.to_string(),
