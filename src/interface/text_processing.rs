@@ -34,7 +34,7 @@ impl CrumpCluster {
         return CrumpCluster { value: Cc };
     }
     pub fn insert(&mut self, indx: usize, element: &str) -> &mut Self {
-        let blop = self.value.get_mut(indx).unwrap();
+        // let blop = self.value.get_mut(indx).unwrap();
         match self.value.get_mut(indx) {
             Some(val) => {
                 element.chars().for_each(|ec| val.push(ec));

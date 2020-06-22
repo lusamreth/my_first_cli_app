@@ -1,8 +1,9 @@
 extern crate serde;
 extern crate serde_json;
-use terminal_size::{Height,Width,terminal_size};
+use super::utility::ErrorHandler;
 use serde::Deserialize;
 use std::cell::RefCell;
+use std::collections::hash_map;
 use std::fs::File;
 use std::io::Read;
 use std::rc::Rc;
@@ -23,7 +24,7 @@ Parameters-Scope:
 **/
 #[derive(Debug, Deserialize)]
 struct FileParam {
-    short: String,
+    pub short: String,
     long: String,
     description: String,
 }
@@ -32,9 +33,7 @@ enum Argtype {
     Prefixes,
     Affixes,
 }
-struct MatchFunction{
-    string_function:Vec<Box<dyn Fn(String)>>
-}
+type StringFunct = Box<dyn FnMut(&str) -> String>;
 #[derive(Debug, Deserialize)]
 struct ParamConfigBuilder {
     limit: Option<i32>,
@@ -42,22 +41,23 @@ struct ParamConfigBuilder {
     commands: Vec<FileParam>,
 }
 struct ParamConfig {
-    limit: Option<i32>,
+    limit: i32,
     arg_type: Argtype,
     commands: Vec<FileParam>,
     prefix: String,
-    executatble:Vec<MatchFunction>
+    executatble: hash_map::HashMap<String, StringFunct>,
+    count: usize,
 }
 pub fn filter_param(parameters: &Vec<String>, input: &str) -> String {
     let mut result = String::new();
     if parameters.is_empty() == false {
-        parameters.iter().for_each(|param| {
-            match param.to_lowercase() .as_str(){
+        parameters
+            .iter()
+            .for_each(|param| match param.to_lowercase().as_str() {
                 "--u" => result.push_str(&input.to_uppercase()),
                 "--l" => result.push_str(&input.to_lowercase()),
                 "--c" | "default" | _ => result = input.to_string(),
-            }
-        })
+            })
     } else {
         result = input.to_string()
     }
@@ -81,8 +81,8 @@ pub fn filter_param(parameters: &Vec<String>, input: &str) -> String {
 trait ParamFactory {
     fn create(address: &str) -> Rc<RefCell<Self>>;
     fn chain_ref(&mut self) -> &mut Self;
-    fn add_prefix(&mut self, prefix: &str) ->  &mut Self;
-    
+    fn add_prefix(&mut self, prefix: &str) -> &mut Self;
+    fn collect(self) -> ParamConfig;
 }
 impl ParamFactory for ParamConfigBuilder {
     fn create(address: &str) -> Rc<RefCell<Self>> {
@@ -100,33 +100,65 @@ impl ParamFactory for ParamConfigBuilder {
         let res: ParamConfigBuilder = serde_json::from_str(&buffer).expect("ahh");
         return get_ref(res);
     }
-    fn add_prefix(&mut self, prefix: &str) -> &mut Self{
-        if prefix.len() > 2{
+    fn add_prefix(&mut self, prefix: &str) -> &mut Self {
+        if prefix.len() > 2 {
             panic!("prefix only accepts string with len of 2!");
         }
         self.commands.iter_mut().for_each(|par| {
-            let split_char = |str:&str|{
+            let split_char = |str: &str| {
                 return str.chars().collect::<Vec<char>>();
             };
-            
-            let prepend = |tar:String|{
-                let mut splited =  split_char(&tar);
-                splited.splice(0..0 , prefix.chars());
-                return splited.into_iter().collect::<String>().to_owned();
 
+            let prepend = |tar: String| {
+                let mut splited = split_char(&tar);
+                splited.splice(0..0, prefix.chars());
+                return splited.into_iter().collect::<String>().to_owned();
             };
             par.long = prepend(par.long.to_string());
             par.short = prepend(par.short.to_string());
-            
         });
         self.chain_ref()
     }
-    
+
     fn chain_ref(&mut self) -> &mut Self {
-        return  self;
+        return self;
+    }
+    fn collect(self) -> ParamConfig {
+        let first: &FileParam = self.commands.get(1).unwrap();
+        let prfx = first.short.chars().take(2).collect();
+        ParamConfig {
+            commands: self.commands,
+            limit: self.limit.unwrap_or(9999999),
+            arg_type: self.arg_type,
+            prefix: prfx,
+            executatble: hash_map::HashMap::new(),
+            count: 0,
+        }
     }
 }
-
+impl ParamConfig {
+    pub fn add_execs(&mut self, execs: StringFunct) {
+        if self.count < self.limit as usize {
+            self.executatble
+                .insert(self.commands[self.count].short.clone(), execs);
+            self.count += 1;
+        } else {
+            panic!("Maximum amount of executables")
+        }
+    }
+    pub fn exec(
+        &mut self,
+        command: &str,
+        content: &str,
+    ) -> Result<String, ErrorHandler::FileError> {
+        match self.executatble.get_mut(command) {
+            Some(ex) => Ok(ex(content)),
+            None => Err(ErrorHandler::FileError::new()
+                .set_message("Invalid parameters!")
+                .describe("Parameter Error!")),
+        }
+    }
+}
 fn add_prefix(pb: Rc<RefCell<ParamConfigBuilder>>, prefix: Option<&str>) {
     match prefix {
         Some(val) => {
@@ -137,34 +169,16 @@ fn add_prefix(pb: Rc<RefCell<ParamConfigBuilder>>, prefix: Option<&str>) {
                     .commands
                     .iter_mut()
                     .for_each(|x| x.long = "wtf".to_string());
-                println!("pb cmd : {:?}", pb.borrow().commands);
             }
         }
         None => {}
     }
 }
-#[test]
-fn tester() {
-    let hmm = ParamConfigBuilder::create("param_cfg.json");
-    hmm.borrow_mut().add_prefix("--");
-    println!("hmm {:?}",hmm.borrow().commands);
-    // add_prefix(hmm, Some("--"));
-    fn read(st:&str){
-        println!("read string {}",st);
-    }
-    fn sum(x:i32) -> i32{
-        return x;
-    }
-    let size = terminal_size();
-    if let Some((Width(w), Height(h))) = size {
-        println!("Your terminal is {} cols wide and {} lines tall", w, h);
-    } else {
-        println!("Unable to get terminal size");
-    }
-}
-// dependency: 
+// dependency:
 /*
     Need arg: 1 params: -> get from self;
     Need user arg : 1 params -> get from usr(file_function);
     Need additional augment params -> proxy from args
 */
+
+fn tex() {}

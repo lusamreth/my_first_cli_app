@@ -23,7 +23,7 @@ use std::{
 };
 use template_engine::TemplateBuilder;
 use template_engine::TemplateEngine;
-type Params = Vec<String>;
+type Params = [Vec<String>; 2];
 use std::collections::hash_map::HashMap;
 #[derive(Debug, PartialOrd, PartialEq)]
 pub struct Fileconfig {
@@ -45,8 +45,8 @@ impl Fileconfig {
             return Err("Insufficient parameters to run file operations!");
         }
         let capture = |index: usize| command_chunk.get(index).unwrap().to_owned();
-
-        let parameters: Vec<String> = if command_chunk.len() > 3 {
+        let mut vc: [Vec<String>; 2] = [Vec::new(), Vec::new()];
+        if command_chunk.len() > 3 {
             let v_param = command_chunk[3..command_chunk.len()].to_owned();
             let p_vec = v_param.into_iter().map(|p_str| String::from(p_str));
 
@@ -59,24 +59,21 @@ impl Fileconfig {
             let quote_word = regex::Regex::new(r#"(["'])((\\{2})*|(.*?[^\\](\\{2})*))"#)
                 .unwrap_or_else(|x| throw_reg_panic(x));
             let match_inside_brac = regex::Regex::new(r"^\[(.*)\]$").unwrap();
+            p_vec.for_each(|x| {
+                if match_inside_brac.is_match(&x) || quote_word.is_match(&x) {
+                    vc[0].push(x);
+                } else if p_reg.is_match(&x) {
+                    vc[1].push(x);
+                }
+            })
+        }
 
-            p_vec
-                .filter(|vec_s| {
-                    // println!("hm {}")
-                    match_inside_brac.is_match(vec_s)
-                        | p_reg.is_match(vec_s)
-                        | quote_word.is_match(vec_s)
-                })
-                .collect::<Vec<String>>()
-        } else {
-            Vec::new()
-        };
         let result = Fileconfig {
             name: capture(2),
             query: capture(1),
             path: capture(2),
             access_at: timestamp(),
-            parameters: parameters,
+            parameters: vc,
             content: String::from("None"),
         };
 
@@ -112,37 +109,40 @@ impl Fileconfig {
         //   .filter(|bracketed|);
     }
     pub fn run(&self) -> Result<(), FileError> {
-        let init_ptr = TermCfg::new().set_attr(console::Attribute::Bold);
+        let init_ptr = TermCfg::new()
+            .set_attr(console::Attribute::Bold)
+            .set_attr(console::Attribute::Italic);
         let print = init_ptr.gen_print(Some(console::Color::Blue));
         let mut print_ln = init_ptr.gen_println(Some(console::Color::Blue));
 
         let mut err_collector: Vec<FileError> = Vec::new();
-        let display_txt = |txt: &str| {
-            let filtertxt = filter_param(&self.parameters, txt);
+        let display_txt = |txt: &str| -> template_engine::Template {
             let mut tmp_engine = template_engine::TemplateFactory::init()
-                .parse_in_template(&filtertxt)
+                .parse_in_template(txt)
                 .create_movable()
                 .collect();
 
-            let template = tmp_engine
-                .padding(vec![6, 6, 6, 6]);
-            template.display();
+            let template = tmp_engine.padding(vec![6, 6, 6, 6]);
+            template.to_owned()
         };
         match self.query.as_str() {
             "update" => {
                 // self.write(params[0], params[1].parse::<i32>().unwrap());
                 println!("what is your ct?");
-                let elim_quote = self.parse_quotation(&self.parameters);
+                let elim_quote = self.parse_bracket(&self.parameters[0]);
                 self.update(&elim_quote[1], elim_quote[0].clone().as_str());
             }
             "search" => {
-                let unquote = self.parse_bracket(&self.parameters);
-                println!("{}", &format!("<->statistics of word {:?}<->", unquote));
+                let unquote = self.parse_bracket(&self.parameters[0]);
+                print_ln(&format!("<->statistics of word {:?}<->", unquote))?;
                 let mut p = init_ptr.gen_println(Some(console::Color::Blue));
                 for quoted in unquote {
-                    match self.search(&quoted) {
+                    let quoted = filter_param(&self.parameters[1], &quoted);
+                    let filtered = filter_param(&self.parameters[1], &quoted);
+                    match self.search(&filtered) {
                         Ok(found_map) => {
                             print!("Highligted-Text: \n");
+
                             let full_content = self.read().unwrap();
                             let total_line = found_map.len();
 
@@ -167,7 +167,11 @@ impl Fileconfig {
                                             crump.delete(*start, Some(*end));
                                             crump.insert(
                                                 *start,
-                                                &console::style(quoted.clone()).red().to_string()
+                                                &format!(
+                                                    "--->\"{}\"<---",
+                                                    quoted.clone().trim(),
+                                                )
+                                                .trim(),
                                             );
                                         });
                                     }
@@ -181,14 +185,19 @@ impl Fileconfig {
                                     return merged;
                                 })
                                 .collect::<String>();
-                            display_txt(&fully_merged);
                             // display_txt(&fully_merged, "+/");
                             if total_line <= 1 {
                                 p(&"No word found in the text!")?;
                             } else {
+                                display_txt(&fully_merged).display();
                                 p(&format!(
                                     "->Number of line that contain word /{}/: {}",
-                                    quoted,total_line
+                                    quoted, total_line
+                                ))?;
+                                p(&format!(
+                                    "Total number of words /{}/ {}",
+                                    quoted,
+                                    count_found_map(found_map)
                                 ))?;
                             }
                         }
@@ -198,8 +207,13 @@ impl Fileconfig {
             }
             "read" => {
                 let result = self.read();
+                print_ln("Reading contains : ")?;
                 match result {
-                    Ok(txt) => display_txt(&txt),
+                    Ok(txt) => {
+                        display_txt(&filter_param(&self.parameters[1], &txt))
+                            .center_box()
+                            .display();
+                    }
                     Err(file_err) => {
                         err_collector.push(file_err);
                     }
@@ -345,6 +359,13 @@ impl Clone for Fileconfig {
         };
     }
 }
+fn count_found_map(hsm: HashMap<i64, Vec<(usize, usize)>>) -> usize {
+    let mut count: usize = 0;
+    for (_, hs) in hsm {
+        hs.iter().for_each(|_| count += 1);
+    }
+    return count;
+}
 #[test]
 fn test() {
     let match_inside_brac = regex::Regex::new(r"^\[(.*)\]$").unwrap();
@@ -356,4 +377,3 @@ fn test() {
         (match_inside_brac.is_match(test), test.trim_matches(x))
     );
 }
-

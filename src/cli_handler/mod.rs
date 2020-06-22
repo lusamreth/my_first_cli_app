@@ -1,5 +1,9 @@
 use super::file;
-use super::interface::{printer, TerminalSize};
+use super::interface::{
+    components::{self, border},
+    printer,
+    template_engine::Padding,
+};
 use super::utility::{self, ErrorHandler};
 pub use std::{fmt, io};
 mod state_manager;
@@ -10,14 +14,25 @@ use std::thread;
 pub fn run() {
     #[macro_use]
     let main_menu = utility::make_cmd(vec!["Save", "Import(not yet implemented)", "Default"]);
-    for comd in &main_menu {
-        println!("{}", comd);
-    }
-    
+    let map_to_temp = main_menu
+        .iter()
+        .map(|x| {
+            let to_p = format!("{}.{}", x.binder, x.execution);
+            return to_p;
+        })
+        .collect::<Vec<String>>();
+    let pad = Padding::create().input(vec![5, 5, 3, 3]).to_owned();
+    let ix = border(
+        "+=",
+        map_to_temp,
+        file::components::BorderWeight::Light,
+        pad,
+    );
+    ix.iter().for_each(|x| println!("{}", x));
     let path_stack = utility::Pathstack::new(None);
     let dot = utility::Dot::new(50, "+");
     let state_queue = state_manager::BufferState::new(state_manager::Constate::Save, Some(10));
-    let mut mx:u16 = 0;
+    let mut mx: u16 = 0;
     // let (print_str,print_line) =
     loop {
         let raw = utility::input(Some(">>")).unwrap();
@@ -111,10 +126,19 @@ pub fn run() {
             }
         }
         let push_stk = |exec_com: &str| {
-            path_stack.push(exec_com.to_string());
+            let st = format!("{} module has been selected!", exec_com);
+            let msg = vec![st];
+            border(
+                "+=",
+                msg,
+                file::components::BorderWeight::Light,
+                Padding::create(),
+            )
+            .iter()
+            .for_each(|x| println!("{}", x));
+            let z = exec_com.to_string();
+            path_stack.push(z.clone());
             path_stack.lock();
-            let msg = format!("{} module has been selected!", exec_com);
-            dot.content_box(&msg);
         };
         let feedback_int = feedback.parse::<i32>().unwrap_or_default();
         match utility::match_command(feedback, &main_menu) {

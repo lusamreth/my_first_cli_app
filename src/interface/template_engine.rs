@@ -1,10 +1,10 @@
-use super::components::{border, BorderWeight,parse_in_template};
+use super::components::{border, BorderWeight,parse_in_template,center_box};
 use super::text_processing;
 use std::collections::VecDeque;
 
 //trait
 pub trait TemplateEngine<'a> {
-    fn center_box();
+    fn center_box(&mut self) -> &mut Self;
     fn chain(&mut self) -> &mut Self;
     fn border(&mut self, style: &'a str, weight: BorderWeight) -> &mut Self;
     fn padding(&mut self, padding: Vec<u16>) -> &mut Self;
@@ -199,15 +199,17 @@ impl<'a> TemplateBuilder<'a> for TemplateFactory<'a> {
     }
 }
 impl TemplateEngine<'_> for Template<'_>{
-    fn center_box(){
-
+    fn center_box(&mut self) -> &mut Self{
+        let term_size = super::TerminalSize::retrieve();
+        self.structure = center_box(term_size.x as i32, 3, self.structure.to_owned());
+        self.chain()
     }
     fn chain(&mut self) -> &mut Self{
         self
     }
     fn border(&mut self, style:&str,weight: BorderWeight) -> &mut Self {
         let test_padding = Padding::create().input(vec![5, 5, 10, 8]).clone();
-        self.structure = border(style, self.structure.clone(), weight, test_padding);
+        self.structure = border(style, self.structure.to_owned(), weight, test_padding);
         self.chain()
     }
     fn padding(&mut self, padding: Vec<u16>) -> &mut Self {
