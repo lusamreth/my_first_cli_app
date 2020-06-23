@@ -102,7 +102,6 @@ pub fn border(
         .unwrap_or(&"".to_string())
         .len() as i32;
     // let len_cont = (TerminalSize::retrieve().x - 30) as i32;
-    content.iter().for_each(|x| println!("{}",x.len()));
     //convert raw content into queue buffer
     let padding_str = padding
         .into_iter()
@@ -112,28 +111,33 @@ pub fn border(
     if len_cont == 0 {
         content.push("    ".to_string());
     }
+    let mut avg_len = 0;
     content.insert(content.len(), "".to_string());
     content.insert(0, "".to_string());
-    content.iter_mut().enumerate().for_each(|(_, line)| {
-        let cal_index = (len_cont as i32 - line.len() as i32 ) as i32;
-        let newspace = gen_whitespace(cal_index);
-        let mut line_queue = convert_queue(line.chars().into_iter().collect());
-        format!("{}{}{}", padding_str[0], newspace, style)
-            .chars()
-            .into_iter()
-            .for_each(|letter| line_queue.push_back(letter));
+    let mut add_border = ||{
+        content.iter_mut().enumerate().for_each(|(_, line)| {
+            let cal_index = len_cont - line.len() as i32 ;
+            let newspace = gen_whitespace(cal_index);
+            let mut line_queue = convert_queue(line.chars().into_iter().collect());
+            format!("{}{}{}", padding_str[0], newspace, style)
+                .chars()
+                .into_iter()
+                .for_each(|letter| line_queue.push_back(letter));
+            avg_len = format!("{}{}", padding_str[1], style).len();
 
-        format!("{}{}", padding_str[1], style)
-            .chars()
-            .into_iter()
-            .for_each(|z| line_queue.push_front(z));
-        
-        *line = line_queue.into_iter().collect::<String>();
-        // line.push_str(&formated);
-    });
-    let paint_config = Border::new(weight).fill(style).len(len_cont as usize);
-
-    let drawborder = paint_config.build_painter(content.get(0).unwrap().len() );
+            format!("{}{}", padding_str[1], style)
+                .chars()
+                .into_iter()
+                .for_each(|z| line_queue.push_front(z));
+            let ll = line_queue.into_iter().collect::<String>();
+            // if count == 132 || count == 13
+            *line = ll;
+            // line.push_str(&formated);
+        });
+    };
+    add_border();
+    let paint_config = Border::new(weight).fill(style).len(len_cont as usize + padding_str[3].len() + 5);
+    let drawborder = paint_config.build_painter(content.get(1).unwrap().len() );
 
     drawborder(&mut rendered_template);
     content.into_iter().for_each(|x| rendered_template.push(x));
@@ -188,5 +192,3 @@ pub fn center_box(x: i32, y: i32, mut content: template) -> template {
     rendered_template.push(gen_newline(y));
     return rendered_template;
 }
-//54|   nice but wouldn’t be Vec::with_capacity(string.len() / sub_len) better here?
-//54|   nice but wouldn’t be Vec::with_capacity(string.len() / sub_len) better here?

@@ -1,19 +1,18 @@
 use super::file;
 use super::interface::{
+    TerminalSize,
     components::{self, border},
     printer,
     template_engine::Padding,
 };
-use super::utility::{self, ErrorHandler};
+use super::utility::{self, ErrorHandler,Command};
 pub use std::{fmt, io};
 mod state_manager;
 use console::{self, Color};
 use state_manager::Buffer;
 use std::thread;
 
-pub fn run() {
-    #[macro_use]
-    let main_menu = utility::make_cmd(vec!["Save", "Import(not yet implemented)", "Default"]);
+fn render_menu(main_menu:&Vec<Command<i32,&str>>){
     let map_to_temp = main_menu
         .iter()
         .map(|x| {
@@ -21,14 +20,20 @@ pub fn run() {
             return to_p;
         })
         .collect::<Vec<String>>();
-    let pad = Padding::create().input(vec![5, 5, 3, 3]).to_owned();
-    let ix = border(
+    let terminal_axis = TerminalSize::retrieve().x;
+    let pad = Padding::create().input(vec![5, 0, 1, 3]).expand(terminal_axis * 8 /100).to_owned();
+    let ix = components::center_box(terminal_axis as i32, 0 , border(
         "+=",
         map_to_temp,
         file::components::BorderWeight::Light,
         pad,
-    );
+    ));
     ix.iter().for_each(|x| println!("{}", x));
+}
+
+pub fn run() {
+    let main_menu = utility::make_cmd(vec!["Save", "import(not implemented)","Default"]);
+    render_menu(&main_menu);
     let path_stack = utility::Pathstack::new(None);
     let dot = utility::Dot::new(50, "+");
     let state_queue = state_manager::BufferState::new(state_manager::Constate::Save, Some(10));
@@ -66,9 +71,7 @@ pub fn run() {
                 path_stack.pop();
             }
             "menu" => {
-                for comd in &main_menu {
-                    print_ln(&format!("{}", comd));
-                }
+                render_menu(&main_menu)
             }
             _ => (),
         }
@@ -126,13 +129,14 @@ pub fn run() {
             }
         }
         let push_stk = |exec_com: &str| {
+            print!("\n");
             let st = format!("{} module has been selected!", exec_com);
             let msg = vec![st];
             border(
                 "+=",
                 msg,
                 file::components::BorderWeight::Light,
-                Padding::create(),
+                Padding::create().input(vec![3,3,5,5]).to_owned(),
             )
             .iter()
             .for_each(|x| println!("{}", x));

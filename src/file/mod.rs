@@ -122,7 +122,7 @@ impl Fileconfig {
                 .create_movable()
                 .collect();
 
-            let template = tmp_engine.padding(vec![6, 6, 6, 6]);
+            let template = tmp_engine.padding(vec![1, 6, 6, 3]);
             template.to_owned()
         };
         match self.query.as_str() {
@@ -167,11 +167,8 @@ impl Fileconfig {
                                             crump.delete(*start, Some(*end));
                                             crump.insert(
                                                 *start,
-                                                &format!(
-                                                    "--->\"{}\"<---",
-                                                    quoted.clone().trim(),
-                                                )
-                                                .trim(),
+                                                &format!("--->\"{}\"<---", quoted.clone().trim(),)
+                                                    .trim(),
                                             );
                                         });
                                     }
@@ -189,7 +186,10 @@ impl Fileconfig {
                             if total_line <= 1 {
                                 p(&"No word found in the text!")?;
                             } else {
-                                display_txt(&fully_merged).display();
+                                display_txt(&fully_merged)
+                                    .border("+", components::BorderWeight::Bold)
+                                    .center_box()
+                                    .display();
                                 p(&format!(
                                     "->Number of line that contain word /{}/: {}",
                                     quoted, total_line
@@ -211,6 +211,7 @@ impl Fileconfig {
                 match result {
                     Ok(txt) => {
                         display_txt(&filter_param(&self.parameters[1], &txt))
+                            .border("+", components::BorderWeight::Bold)
                             .center_box()
                             .display();
                     }
@@ -237,11 +238,7 @@ pub trait TextPos {
 }
 
 // [x1,x2,"string"]
-impl TextPos for i32 {
-    fn modify(&self, content: String, target: &str) -> Vec<String> {
-        unimplemented!();
-    }
-}
+
 // replace all word within that target across all content
 impl TextPos for &str {
     fn modify(&self, content: String, new_str: &str) -> Vec<String> {
@@ -281,7 +278,7 @@ fn checkempty(result: &str) -> OriResult<String> {
         let empty_err = FileError::new().set_message("The Folder is Empty inside");
         Err(empty_err)
     } else {
-        Ok(result.to_string())
+        Ok(result.trim().to_string())
     }
 }
 impl Operation for Fileconfig {

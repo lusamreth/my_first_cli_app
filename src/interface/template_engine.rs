@@ -201,7 +201,7 @@ impl<'a> TemplateBuilder<'a> for TemplateFactory<'a> {
 impl TemplateEngine<'_> for Template<'_>{
     fn center_box(&mut self) -> &mut Self{
         let term_size = super::TerminalSize::retrieve();
-        self.structure = center_box(term_size.x as i32, 3, self.structure.to_owned());
+        self.structure = center_box(term_size.x as i32, 0, self.structure.to_owned());
         self.chain()
     }
     fn chain(&mut self) -> &mut Self{

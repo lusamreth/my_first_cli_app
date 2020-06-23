@@ -48,7 +48,7 @@ impl CrumpCluster {
         let printErr = || eprintln!("Error! : Cannot Delete element at index {}!", indx);
 
         if let Some(end_indx) = end {
-            match self.value.get_mut(indx..end.unwrap()) {
+            match self.value.get_mut(indx..end_indx) {
                 Some(val) => {
                     val.iter_mut().for_each(|ch| {
                         ch.pop();

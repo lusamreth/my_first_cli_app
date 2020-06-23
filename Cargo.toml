@@ -5,11 +5,10 @@ authors = ["lusamreth <somrethoverkill@gmail.com>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[profile.release]
+opt-level = 'z'  # Optimize for size.
 
 [dependencies]
-time = "0.2.15"
-rand = "0.7.3"
-chrono = "0.4.11"
 console = "0.11.3"
 regex = "1.3.7"
 termcolor = "1.1.0"
@@ -18,4 +17,3 @@ terminal_size = "0.1.12"
 serde = { version = "1.0", features = ["derive"] }
 unicode-segmentation = "1.6.0"
 serde_json = "1.0.53"
-itoa = "0.4.5"

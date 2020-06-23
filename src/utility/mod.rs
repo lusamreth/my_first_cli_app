@@ -237,7 +237,6 @@ where
         let exec = ec.execution.to_string().to_lowercase();
         if input.len() == 1 {
             let ip = p_get(0);
-            println!("pew {}", exec.to_string());
             binder.to_string() == *ip || exec.to_string() == *ip
         } else {
             let input_binder = p_get(0);
